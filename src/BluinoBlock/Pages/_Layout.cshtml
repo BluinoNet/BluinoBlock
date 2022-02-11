@@ -1,0 +1,78 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@namespace BluinoBlock.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <link href="BluinoBlock.styles.css" rel="stylesheet" />
+
+  
+
+    <!-- Babylon.js -->
+    <script src="https://code.jquery.com/pep/0.4.2/pep.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+   
+    <script src="https://cdn.babylonjs.com/ammo.js"></script>
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+    <script src="https://cdn.babylonjs.com/Oimo.js"></script>
+    <script src="https://cdn.babylonjs.com/libktx.js"></script>
+    <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+    <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
+</head>
+<body>
+    @RenderBody()
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+     <script>
+        var demoWorkspace;
+        window.BlocklyFunctions = {
+            createDemoWorkspace: function (blocklyDiv, toolbox, startBlocks) {
+                demoWorkspace = Blockly.inject(blocklyDiv,
+                    {
+                        media: 'media/',
+                        toolbox: toolbox
+                    });
+                Blockly.Xml.domToWorkspace(startBlocks,
+                    demoWorkspace);
+            },
+            getXML: function () {
+                var xml = Blockly.Xml.workspaceToDom(demoWorkspace);
+                var xml_text = Blockly.Xml.domToText(xml);
+                return xml_text;
+            }
+        };
+    </script>
+
+    <script src="javascript/blockly_compressed.js"></script>
+    <script src="javascript/blocks_compressed.js"></script>
+    <script src="javascript/automatickingdom_executeanimation.js"></script>
+    <script src="javascript/msg/js/en.js"></script>
+
+    <script src="_framework/blazor.server.js"></script>
+    <script src="_content/EventHorizon.Blazor.Server.Interop/server-interop-bridge.js"></script>
+
+</body>
+</html>

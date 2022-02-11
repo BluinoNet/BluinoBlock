@@ -1,0 +1,247 @@
+﻿@page "/"
+
+<PageTitle>Bluino Block</PageTitle>
+@using System.Threading.Tasks
+@using BABYLON
+@using BluinoBlock.Classes
+@using Microsoft.JSInterop
+@using System.Collections.Generic;
+@using IronBlock
+@using IronBlock.Blocks;
+@using Microsoft.CodeAnalysis;
+@using CSScriptLib;
+@inject IJSRuntime JSRuntime
+
+<h1>Bluino Block</h1>
+
+<button class="btn btn-primary" @onclick="GetXML" disabled="@ViewXML">
+    XML
+</button>
+<button class="btn btn-primary" @onclick="GetCode" disabled="@ViewCode">
+    C# Code
+</button>
+<button class="btn btn-primary" @onclick="RunCode" disabled="@ViewRunCode">
+    Run Code
+</button>
+<div style="width: 100%">
+    <div @ref="@blocklyDiv" style="display: inline-block; height: 480px; width: 100%"></div>
+</div>
+
+@if (ViewXML)
+{
+    <div class="modal" tabindex="-1" style="display:block;background-color:gainsboro" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">View XML</h3>
+                    <!-- Button to close the popup -->
+                    <button type="button" class="close"
+                            @onclick="ClosePopup">
+                        <span aria-hidden="true">X</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <textarea disabled="disabled" style="display: inline-block; height: 480px; width: 100%;">@XMLText</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (ViewCode)
+{
+    <div class="modal" tabindex="-1" style="display:block;background-color:gainsboro" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">View Code</h3>
+                    <!-- Button to close the popup -->
+                    <button type="button" class="close"
+                            @onclick="ClosePopup">
+                        <span aria-hidden="true">X</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <textarea disabled="disabled" style="display: inline-block; height: 480px; width: 100%;">@CodeText</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (ViewRunCode)
+{
+    <div class="modal" tabindex="-1" style="display:block;background-color:gainsboro" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    @if (!ExecutingCode)
+                    {
+                        <div>
+                            <select class="form-control"
+                                    @bind="@WorldObject">
+                                @foreach (var option in WorldObjectOptions)
+                                {
+                                    <option value="@option">
+                                        @option
+                                    </option>
+                                }
+                            </select>
+                        </div><br />
+                        <button style="border-left:2px none" class="btn btn-primary" @onclick="ExecuteCode">
+                            Execute Code
+                        </button>
+                    }
+                    else
+                    {
+                        <img src="media/waiting.gif" width="200" height="50" />
+                    }
+                    <!-- Button to close the popup -->
+                    <button type="button" class="close"
+                            @onclick="ClosePopup">
+                        <span aria-hidden="true">X</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @if (!ExecutingCode)
+                    {
+                        <p>Response: @Output</p>
+                    }
+                    <Avatar @ref="Player"></Avatar>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- TOOLBOX -->
+<DefaultToolbox @ref="@objDefaultToolbox">
+</DefaultToolbox>
+
+<!-- STARTING BLOCKS -->
+<DefaultStartingBlocks @ref="@objDefaultStartingBlocks">
+</DefaultStartingBlocks>
+
+@code {
+    Avatar Player;
+    dynamic CsScript;
+    private IDictionary<string, AnimationGroup> _animationMap = new Dictionary<string, AnimationGroup>();
+    private AnimationGroup _runningAnimation = null;
+
+    private ElementReference blocklyDiv;
+    private DefaultToolbox objDefaultToolbox;
+    private DefaultStartingBlocks objDefaultStartingBlocks;
+
+    List<string> WorldObjectOptions = new List<string>() { "Idle", "Attacked", "Calm" };
+    string WorldObject = "Idle";
+
+    bool ViewXML = false;
+    bool ViewCode = false;
+    bool ViewRunCode = false;
+
+    bool ExecutingCode = false;
+
+    string XMLText = "";
+    string CodeText = "";
+    string Output = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await BluinoBlockInterop.DemoWorkspace(
+                JSRuntime,
+                blocklyDiv,
+                objDefaultToolbox.toolbox,
+                objDefaultStartingBlocks.startBlocks
+                );
+        }
+    }
+
+    void ClosePopup()
+    {
+        // Close Popups
+        ViewXML = false;
+        ViewCode = false;
+        ViewRunCode = false;
+    }
+
+    private async Task GetXML()
+    {
+        ViewXML = true;
+        ViewCode = false;
+        ViewRunCode = false;
+        XMLText = await BluinoBlockInterop.GetXML(JSRuntime);
+    }
+
+    private async Task GetCode()
+    {
+        ViewXML = false;
+        ViewCode = true;
+        ViewRunCode = false;
+        CodeText = "";
+
+        try
+        {
+            XMLText = await BluinoBlockInterop.GetXML(JSRuntime);
+
+            var parser = new Parser()
+                .AddStandardBlocks()
+                .AddBlock<ExecuteAnimation>("automatickingdom_executeanimation")
+                .Parse(XMLText);
+
+            var syntaxTree = parser.Generate();
+            string code = syntaxTree.NormalizeWhitespace().ToFullString();
+            var script = GenerateScripts.GenerateScript(code);
+
+            CodeText = script.Code;
+        }
+        catch (Exception ex)
+        {
+            CodeText = "ERROR: " + ex.Message;
+        }
+    }
+
+    private async Task ExecuteCode()
+    {
+        try
+        {
+            var result = CsScript.AnimationLoop(WorldObject);
+
+            this.Output = result;
+
+            await Player.RunAnimation(result);
+        }
+        catch (Exception ex)
+        {
+            this.Output = "ERROR: " + ex.Message;
+        }
+    }
+
+    private async Task RunCode()
+    {
+        ViewXML = false;
+        ViewCode = false;
+        ViewRunCode = true;
+        ExecutingCode = true;
+
+        StateHasChanged();
+
+        this.Output = "";
+
+        XMLText = await BluinoBlockInterop.GetXML(JSRuntime);
+
+        var parser = new Parser()
+            .AddStandardBlocks()
+            .AddBlock<ExecuteAnimation>("automatickingdom_executeanimation")
+            .Parse(XMLText);
+
+        var syntaxTree = parser.Generate();
+
+        string code = syntaxTree.NormalizeWhitespace().ToFullString();
+
+        CsScript = CSScript.Evaluator.LoadCode(GenerateScripts.ConvertScript(code));
+
+        ExecutingCode = false;
+    }
+}
